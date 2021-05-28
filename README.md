@@ -50,7 +50,7 @@ Compile and run LGNI.cpp to generate the log file with necessary parameters list
 	cd ./Code/
 	g++ -O3 -fopenmp LGNI.cpp -o LGNI.out   # compile
 	./LGNI.out Budget IIS NPI Step pl lp logfile dataset LB LS uaf   # run with param
-	./RGNI_GL_RC.out 1.0 500 500 3 0.02 0.02 ../log_LGNI.txt ../Data_LA/ 1 1 1    # example
+	./LGNI.out 1.0 500 500 3 0.02 0.02 ../log_LGNI.txt ../Data_LA/ 1 1 1    # example
 ```
 
 Then generate the control strategy from the log file.
