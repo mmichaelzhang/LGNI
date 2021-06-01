@@ -3,12 +3,16 @@ Repository for paper "Geodemographic Network Immunization for Epidemic Control"
 
 # Introduction
 
-...
+LGNI aims to select the best set of locations under control over a mobility network in order to minimize the worst-case scenario of epidemic spread. It integrates:
+
+* Mobility-aware defined spread function
+* Relaxed Lower-bound estimation of location's marginal control gain
+* Parallel Implementation for optimization acceleration
 
 # Use Guide
 ## Environment Setup
 
-...
+* C++ compiler with OpenMP support
 
 ## Data Preparation
 
