@@ -8,9 +8,10 @@
 #include <cstring>
 #include <vector>
 #include <valarray>
-#include <omp.h>
+// #include <omp.h>
 using namespace std; 
 #include <chrono> 
+#include <cmath>
 using namespace std::chrono; 
   
 ofstream ff;
@@ -141,13 +142,15 @@ C_Ret Graph::iterative_calculate(int u, int k, bool is_infected, float p_to_l, f
         }
         return result;
     }
-    float pre_h1[num_nodes] = {0}, pre_h2[num_nodes] = {0}, pre_h3[num_nodes] = {0}, h1[num_nodes] = {0}, h2[num_nodes] = {0}, h3[num_nodes] = {0}, cur_g[num_nodes] = {0};
+    // float pre_h1[num_nodes] = {0}, pre_h2[num_nodes] = {0}, pre_h3[num_nodes] = {0}, h1[num_nodes] = {0}, h2[num_nodes] = {0}, h3[num_nodes] = {0}, cur_g[num_nodes] = {0};
+    vector<float> pre_h1(num_nodes, 0), pre_h2(num_nodes, 0), pre_h3(num_nodes, 0), h1(num_nodes, 0), h2(num_nodes, 0), h3(num_nodes, 0), cur_g(num_nodes, 0);
     pre_h1[u] = initial_s;
     pre_h2[u] = 1 - initial_s;
     pre_h3[u] = 1;
     result.g[u] = is_infected == false ? 1 : 1 - p_to_l;
     list<int> pre_queue, queue;
-    bool queue_element[num_nodes] = {0};
+    // bool queue_element[num_nodes] = {0};
+    vector<bool> queue_element(num_nodes, 0);
     pre_queue.push_back(u);
     int cur_k = 1;
     while (true)
@@ -238,14 +241,22 @@ C_Ret Graph::iterative_calculate(int u, int k, bool is_infected, float p_to_l, f
                 result.g[i] *= 1 - cur_g[i];
             pre_queue = queue;
             queue.clear();
-            memcpy(pre_h1, h1, sizeof(h1));
-            memcpy(pre_h2, h2, sizeof(h2));
-            memcpy(pre_h3, h3, sizeof(h3));
-            memset(queue_element, 0, sizeof(queue_element));
-            memset(h1, 0, sizeof(h1));
-            memset(h2, 0, sizeof(h2));
-            memset(h3, 0, sizeof(h3));
-            memset(cur_g, 0, sizeof(cur_g));
+            // memcpy(pre_h1, h1, sizeof(h1));
+            // memcpy(pre_h2, h2, sizeof(h2));
+            // memcpy(pre_h3, h3, sizeof(h3));
+            pre_h1 = h1;
+            pre_h2 = h2;
+            pre_h3 = h3;
+            fill(queue_element.begin(), queue_element.end(), 0);
+            fill(h1.begin(), h1.end(), 0);
+            fill(h2.begin(), h2.end(), 0);
+            fill(h3.begin(), h3.end(), 0);
+            fill(cur_g.begin(), cur_g.end(), 0);
+            // memset(queue_element, 0, sizeof(queue_element));
+            // memset(h1, 0, sizeof(h1));
+            // memset(h2, 0, sizeof(h2));
+            // memset(h3, 0, sizeof(h3));
+            // memset(cur_g, 0, sizeof(cur_g));
         }  
     }
     return result;
@@ -285,7 +296,8 @@ void g_main(int num_affected, int num_maxs, int step, float p_to_l, float l_to_p
     cout << "uaf: " << num_unaffected << endl; //xiao
     Graph g(nodes.size(), num_affected, num_unaffected, p_to_l, l_to_p);
 
-    int uaf_count[g.V] = {0};
+    // int uaf_count[g.V] = {0};
+    vector<int> uaf_count(g.V, 0);
     for (list<int>::iterator i = uaf.begin(); i != uaf.end(); ++i)
     {
         uaf_count[*i]++;
@@ -315,33 +327,11 @@ void g_main(int num_affected, int num_maxs, int step, float p_to_l, float l_to_p
     }
     f.close();
 
-    float tmp_cost = 0;
-    map<int, bool> current_controlled;
-    f.open(c_path);
-
-    while (getline(f, line))
-    {
-        int u = stoi(line.substr(0, line.find('\n')));
-        // cout << tmp_cost << " " << g.nodes[u].cost << " "<< cost_control << endl;
-        if (tmp_cost + g.nodes[u].cost <= cost_control)
-        {
-            current_controlled[u] = true;
-            tmp_cost += g.nodes[u].cost;
-        }
-        
-    }
-    f.close();
-    for (map<int, bool>::iterator i = current_controlled.begin(); i != current_controlled.end(); ++i)
-    {
-        g.nodes[i->first].is_controlled = true;
-    }
-    cout << "Total number of controlled POIs: " << current_controlled.size() << endl;
-    ff << "Total number of controlled POIs: " << current_controlled.size() << endl;
 
     float max_people = 0;
     float max_location = 0;
 
-    float location_initial_s[g.V] = {0};
+    // float location_initial_s[g.V] = {0};
     list<int> af;
     f.open(prefix + "Degree_Ranked.txt");
     while (getline(f, line))
@@ -351,86 +341,90 @@ void g_main(int num_affected, int num_maxs, int step, float p_to_l, float l_to_p
         af.push_back(stoi(line.substr(0, line.find('\n'))));
     }
     f.close();
-    valarray<float> af_g(1, g.V);
-    float af_count[g.V] = {0};
+    
+    // float af_count[g.V] = {0};
+    vector<float> af_count(g.V, 0);
     for (list<int>::iterator i = af.begin(); i != af.end(); ++i)
     {
         af_count[*i]++;
     }
-    C_Ret ret;
-    #pragma omp declare reduction(*:valarray<float>:omp_out *= omp_in) initializer (omp_priv = omp_orig)
-    #pragma omp declare reduction(vec_float_plus : std::vector<float> : \
-                  std::transform(omp_out.begin(), omp_out.end(), omp_in.begin(), omp_out.begin(), std::plus<float>())) \
-        initializer(omp_priv = decltype(omp_orig)(omp_orig.size()))
-    #pragma omp parallel for private(ret)
-    for (int i = 0; i < g.V; i++)
-    {
-        if (af_count[i] != 0)
-        {
-            C_Ret ret = g.iterative_calculate(i, step, true, p_to_l, l_to_p, 1);
-            af_g = af_g * pow(valarray<float>(ret.g, g.V), valarray<float>(af_count[i], g.V));
-        }
-    }
 
+    int incubation_period = 14;
+    vector< vector<float> > global_infected(g.V, vector<float>(incubation_period, 0));
+    int head = 0, tail = 0;
+    for (int i = 0; i < g.V; i++)
+        global_infected[i][tail] = af_count[i];
+    tail++;
+    cout << head << " " << tail << endl;
+
+    // Start multi-period spread process
+    vector<int> current_controlled;
     for (int INNER_LOOP = 0; INNER_LOOP < 180; INNER_LOOP++)
     {
-        // cout << "max: " << INNER_LOOP << endl;
-        // ff << "max: " << INNER_LOOP << endl;
-        float exp_nodes = 0;
-        float exp_people = -10000;
-        float exp_location = 0;
-        // list<int> af;
-        // ifstream f;
-        // // string prefix = "../Data/";
-        // // string prefix = "";
-        // if (INNER_LOOP == 0)
-        //     f.open(prefix + "Degree_Ranked.txt");
-        // if (INNER_LOOP == 1)
-        //     f.open(prefix + "Cost_Ranked.txt");
-        // if (INNER_LOOP == 2)
-        //     f.open(prefix + "Random_Ranked.txt");
-        // string line;
-        // while (getline(f, line))
-        // {
-        //     if (af.size() >= num_affected)
-        //         break;
-        //     af.push_back(stoi(line.substr(0, line.find('\n'))));
-        // }
-        // f.close();
-        // if (INNER_LOOP == 3)
-        // {
-        //     for (int i = 0; i < g.V; i++)
-        //         af.push_back(i);
-        // }
-        // valarray<float> af_g(1, g.V);
-        // float af_count[g.V] = {0};
-        // for (list<int>::iterator i = af.begin(); i != af.end(); ++i)
-        // {
-        //     af_count[*i]++;
-        //     if (INNER_LOOP == 3)
-        //         af_count[*i] = (float)num_affected / (float)g.V;
-        // }
-        // C_Ret ret;
+        current_controlled.clear();
+
+        cout << "Here1" << endl;
+        float tmp_cost = 0;
+        ifstream f;
+        string line;
+        // cout << "Here" << endl;
+        f.open(c_path);
+        // cout << "Here1" << endl;
+        while (getline(f, line))
+        {
+            int u = stoi(line.substr(0, line.find('\n')));
+            // cout << tmp_cost << " " << g.nodes[u].cost << " "<< cost_control << endl;
+            if (tmp_cost + g.nodes[u].cost <= cost_control)
+            {
+                // cout << "Here2" << endl;
+                current_controlled.push_back(u);
+                tmp_cost += g.nodes[u].cost;
+            }
+            
+        }
+        f.close();
+
+        for (int i = 0; i < g.V; i++)
+        {
+            g.nodes[i].is_controlled = false;
+        }
+
+        for (auto i = current_controlled.begin(); i != current_controlled.end(); ++i)
+        {
+            int ii = *i;
+            g.nodes[ii].is_controlled = true;
+        }
+        cout << "Total number of controlled POIs: " << current_controlled.size() << endl;
+        ff << "Total number of controlled POIs: " << current_controlled.size() << endl;
+
+        C_Ret ret_inf;
+        valarray<float> af_g(1, g.V);
+        // cout << "Here" << endl;
         // #pragma omp declare reduction(*:valarray<float>:omp_out *= omp_in) initializer (omp_priv = omp_orig)
         // #pragma omp declare reduction(vec_float_plus : std::vector<float> : \
         //               std::transform(omp_out.begin(), omp_out.end(), omp_in.begin(), omp_out.begin(), std::plus<float>())) \
         //     initializer(omp_priv = decltype(omp_orig)(omp_orig.size()))
-        // #pragma omp parallel for private(ret)
-        // for (int i = 0; i < g.V; i++)
-        // {
-        //     if (af_count[i] != 0)
-        //     {
-        //         C_Ret ret = g.iterative_calculate(i, step, true, p_to_l, l_to_p);
-        //         af_g = af_g * pow(valarray<float>(ret.g, g.V), valarray<float>(af_count[i], g.V));
-        //     }
-        // }
+        // #pragma omp parallel for private(ret_inf)
+        for (int i = 0; i < g.V; i++)
+        {
+            if (af_count[i] != 0)
+            {
+                C_Ret ret_inf = g.iterative_calculate(i, step, true, p_to_l, l_to_p, 1);
+                af_g = af_g * pow(valarray<float>(ret_inf.g, g.V), valarray<float>(af_count[i], g.V));
+            }
+        }
+        // cout << "Here" << endl;
+        float exp_nodes = 0;
+        float exp_people = -10000;
+        float exp_location = 0;
         int inner_count = 0;
-        for (int i = 0; i < 100; i++)
-            cout << location_initial_s[i] << " ";
-        cout << endl;
+        // for (int i = 0; i < 100; i++)
+        //     cout << location_initial_s[i] << " ";
+        // cout << endl;
         while (true)
         {
-            float location_current_s[g.V] = {0};
+            // float location_current_s[g.V] = {0};
+            vector<float> location_current_s(g.V, 0);
             static int all_count = 0;
             
             float cur_people = 0;
@@ -441,36 +435,53 @@ void g_main(int num_affected, int num_maxs, int step, float p_to_l, float l_to_p
             // else
             //     tmp_g = new valarray<float>(1, g.V);
             C_Ret ret;
-            #pragma omp declare reduction(*:valarray<float>:omp_out *= omp_in) initializer (omp_priv = omp_orig)
-            #pragma omp declare reduction(vec_float_plus : std::vector<float> : \
-                          std::transform(omp_out.begin(), omp_out.end(), omp_in.begin(), omp_out.begin(), std::plus<float>())) \
-                initializer(omp_priv = decltype(omp_orig)(omp_orig.size()))
-            #pragma omp parallel for private(ret) reduction(+:cur_people)
+            // #pragma omp declare reduction(*:valarray<float>:omp_out *= omp_in) initializer (omp_priv = omp_orig)
+            // #pragma omp declare reduction(vec_float_plus : std::vector<float> : \
+            //               std::transform(omp_out.begin(), omp_out.end(), omp_in.begin(), omp_out.begin(), std::plus<float>())) \
+            //     initializer(omp_priv = decltype(omp_orig)(omp_orig.size()))
+            // #pragma omp parallel for private(ret) reduction(+:cur_people)
             for (int i = 0; i < g.V; i++)
             {
                 if (uaf_count[i] != 0)
                 {
-                    C_Ret ret = g.iterative_calculate(i, step, false, p_to_l, l_to_p, location_initial_s[i]);
+                    C_Ret ret = g.iterative_calculate(i, step, false, p_to_l, l_to_p, 0);
                     location_current_s[i] = ret.h;
-                    cur_people += uaf_count[i] * (ret.h - location_initial_s[i]);
+                    cur_people += uaf_count[i] * (ret.h - 0);
                     tmp_g = tmp_g * pow(valarray<float>(ret.g, g.V), valarray<float>(uaf_count[i], g.V));
                 }
             }
-            cout << cur_people << "\t" << exp_people << "\t" << inner_count++ << "\t" << all_count++ << endl;
-            ff << cur_people << "\t" << exp_people << "\t" << inner_count << "\t" << all_count << endl;
+            cout << cur_people << "\t" << exp_people << "\t" << inner_count << "\t" << all_count++ << endl;
+            ff << cur_people << "\t" << exp_people << "\t" << inner_count++ << "\t" << all_count << endl;
             if ((abs(exp_people) < 1e-6 && abs(cur_people) < 1e-6) || abs(cur_people - exp_people)/cur_people < 1e-4)
             {
-                exp_people = cur_people;
-                cout << "Day " << INNER_LOOP << ": " << exp_people << endl;
+                // cout << "Day " << INNER_LOOP << ": " << cur_people << endl;
+                exp_people = 0;
                 for (int i = 0; i < g.V; i++)
                 {
                     if (g.nodes[i].is_controlled == false)
                         cur_location += 1 - tmp_g[i];
                 }
                 exp_location = cur_location;
-                memcpy(location_initial_s, location_current_s, sizeof(location_initial_s));
+
                 for (int i = 0; i < g.V; i++)
-                    uaf_count[i] -= uaf_count[i] * location_initial_s[i] * 1/14.0;
+                {
+                    float location_new_infected = uaf_count[i] * location_current_s[i];
+                    uaf_count[i] -= location_new_infected;
+                    af_count[i] += location_new_infected;
+                    if (tail == head)
+                    {
+                        af_count[i] -= global_infected[i][head];
+                        exp_people += global_infected[i][head];
+                    }
+                    global_infected[i][tail] = location_new_infected;
+                }
+                if (head == tail)
+                    head = (head+1) % incubation_period;
+                tail = (tail+1) % incubation_period;
+                cout << "here" << endl;
+                float w = 0.01, h = -4;
+                cost_control = 1.0/(1 + exp(-1 * (w * exp_people + h)));
+                cout << "Day " << INNER_LOOP << " newly infected: " << exp_people << " " << head << " " << tail << ", control budget: " << cost_control << endl;
                 break;
             }
             exp_people = cur_people;
@@ -492,6 +503,7 @@ void g_main(int num_affected, int num_maxs, int step, float p_to_l, float l_to_p
                 }
             }
         }
+        cout << "here" << endl;
         // if (max_people < exp_people)
         // {
         //     max_people = exp_people;
@@ -530,7 +542,7 @@ int main(int argc, char* argv[])
     ff.open(string(argv[7]));
     string prefix = string(argv[8]);
     bool lower_bound = atoi(argv[9]);
-    string control_strategy_file_name = prefix + "Baseline_Controls/" + argv[10];
+    string control_strategy_file_name = prefix + "Cost_Ranked.txt";
 
     string uaf_mult = string(argv[11]);
     int num_maxs = 4;     // initializations of infected/uninfected people changed
