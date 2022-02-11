@@ -1,5 +1,5 @@
 # LGNI
-Repository for paper "Geodemographic Network Immunization for Epidemic Control"
+Repository for paper "Network Immunization against Fomite-Mediated Epidemics"
 
 # Introduction
 
