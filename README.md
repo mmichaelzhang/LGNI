@@ -1,5 +1,5 @@
 # LMNI
-Repository for paper "Mobility Network Immunization against Fomite-Mediated Epidemics"
+Repository for paper "Optimizing Mobility Network Immunization: Insights from Fomite-Mediated Epidemic Control"
 
 # Introduction
 
